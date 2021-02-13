@@ -1,6 +1,6 @@
 package guru.sfg.beer.order.service.services;
 
-import guru.sfg.beer.order.service.bootstrap.BeerOrderBootStrap;
+import guru.sfg.beer.order.service.bootstrap.BeerOrderBootstrap;
 import guru.sfg.beer.order.service.domain.Customer;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.repositories.CustomerRepository;
@@ -31,16 +31,16 @@ public class TastingRoomService {
         this.beerOrderService = beerOrderService;
         this.beerOrderRepository = beerOrderRepository;
 
-        beerUpcs.add(BeerOrderBootStrap.BEER_1_UPC);
-        beerUpcs.add(BeerOrderBootStrap.BEER_2_UPC);
-        beerUpcs.add(BeerOrderBootStrap.BEER_3_UPC);
+        beerUpcs.add(BeerOrderBootstrap.BEER_1_UPC);
+        beerUpcs.add(BeerOrderBootstrap.BEER_2_UPC);
+        beerUpcs.add(BeerOrderBootstrap.BEER_3_UPC);
     }
 
     @Transactional
     @Scheduled(fixedRate = 2000) //run every 2 seconds
     public void placeTastingRoomOrder(){
 
-        List<Customer> customerList = customerRepository.findAllByCustomerNameLike(BeerOrderBootStrap.TASTING_ROOM);
+        List<Customer> customerList = customerRepository.findAllByCustomerNameLike(BeerOrderBootstrap.TASTING_ROOM);
 
         if (customerList.size() == 1){ //should be just one
             doPlaceOrder(customerList.get(0));
