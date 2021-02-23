@@ -17,7 +17,7 @@
 
 package guru.sfg.beer.order.service.domain;
 
-public enum BeerOrderStatus {
+public enum BeerOrderState {
     NEW,
     VALIDATED,
     VALIDATION_EXCEPTION,

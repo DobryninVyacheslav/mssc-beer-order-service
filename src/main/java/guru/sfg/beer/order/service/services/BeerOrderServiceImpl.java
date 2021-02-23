@@ -18,7 +18,7 @@
 package guru.sfg.beer.order.service.services;
 
 import guru.sfg.beer.order.service.domain.BeerOrder;
-import guru.sfg.beer.order.service.domain.BeerOrderStatus;
+import guru.sfg.beer.order.service.domain.BeerOrderState;
 import guru.sfg.beer.order.service.domain.Customer;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.repositories.CustomerRepository;
@@ -84,7 +84,7 @@ public class BeerOrderServiceImpl implements BeerOrderService {
             BeerOrder beerOrder = beerOrderMapper.dtoToBeerOrder(beerOrderDto);
             beerOrder.setId(null); //should not be set by outside client
             beerOrder.setCustomer(customerOptional.get());
-            beerOrder.setOrderStatus(BeerOrderStatus.NEW);
+            beerOrder.setOrderStatus(BeerOrderState.NEW);
 
             beerOrder.getBeerOrderLines().forEach(line -> line.setBeerOrder(beerOrder));
 
@@ -109,7 +109,7 @@ public class BeerOrderServiceImpl implements BeerOrderService {
     @Override
     public void pickupOrder(UUID customerId, UUID orderId) {
         BeerOrder beerOrder = getOrder(customerId, orderId);
-        beerOrder.setOrderStatus(BeerOrderStatus.PICKED_UP);
+        beerOrder.setOrderStatus(BeerOrderState.PICKED_UP);
 
         beerOrderRepository.save(beerOrder);
     }
