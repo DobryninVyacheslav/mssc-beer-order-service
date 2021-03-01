@@ -4,6 +4,7 @@ import guru.sfg.beer.order.service.domain.BeerOrderEvent;
 import guru.sfg.beer.order.service.domain.BeerOrderState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.statemachine.action.Action;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
 import org.springframework.statemachine.config.builders.StateMachineStateConfigurer;
@@ -16,7 +17,7 @@ import java.util.EnumSet;
 @EnableStateMachineFactory
 public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<BeerOrderState, BeerOrderEvent> {
 
-    private final ValidateOrderAction validateOrderAction;
+    private final Action<BeerOrderState, BeerOrderEvent> validateOrderAction;
 
     @Override
     public void configure(StateMachineStateConfigurer<BeerOrderState, BeerOrderEvent> states) throws Exception {
