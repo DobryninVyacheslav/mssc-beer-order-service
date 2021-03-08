@@ -1,7 +1,6 @@
 package guru.sfg.beer.order.service.sm.actions;
 
 import guru.sfg.beer.order.service.config.JmsConfig;
-import guru.sfg.beer.order.service.domain.BeerOrder;
 import guru.sfg.beer.order.service.domain.BeerOrderEvent;
 import guru.sfg.beer.order.service.domain.BeerOrderState;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
@@ -30,11 +29,15 @@ public class ValidateOrderAction implements Action<BeerOrderState, BeerOrderEven
     public void execute(StateContext<BeerOrderState, BeerOrderEvent> context) {
         String strBeerOrderId = (String) context.getMessage()
                 .getHeaders().get(BeerOrderManagerImpl.ORDER_ID_HEADER);
-        BeerOrder beerOrder = beerOrderRepository.findOneById(UUID.fromString(strBeerOrderId));
-        jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_QUEUE, ValidateOrderRequest.builder()
-                .beerOrderDto(beerOrderMapper.beerOrderToDto(beerOrder))
-                .build());
-
-        log.debug("Sent validation request to queue for order id: " + strBeerOrderId);
+        if (strBeerOrderId == null) {
+            log.warn("Beer order id is null");
+        } else {
+            beerOrderRepository.findById(UUID.fromString(strBeerOrderId)).ifPresentOrElse(beerOrder -> {
+                jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_QUEUE, ValidateOrderRequest.builder()
+                        .beerOrderDto(beerOrderMapper.beerOrderToDto(beerOrder))
+                        .build());
+                log.debug("Sent validation request to queue for order id: " + strBeerOrderId);
+            }, () -> log.error("Order not found. Id: {}", strBeerOrderId));
+        }
     }
 }

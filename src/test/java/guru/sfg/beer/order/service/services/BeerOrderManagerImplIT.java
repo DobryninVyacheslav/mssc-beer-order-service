@@ -79,6 +79,9 @@ class BeerOrderManagerImplIT {
 
         BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
 
+        Thread.sleep(5000);
+        savedBeerOrder = beerOrderRepository.findById(savedBeerOrder.getId()).orElseThrow();
+
         assertNotNull(savedBeerOrder);
         assertEquals(BeerOrderState.ALLOCATED, savedBeerOrder.getOrderStatus());
     }
