@@ -50,7 +50,7 @@ public class BeerOrderLineDto {
 
     private String upc;
     private String beerName;
-    private String beerStyle;
+    private BeerStyleEnum beerStyle;
     private UUID beerId;
     private Integer orderQuantity = 0;
     private Integer quantityAllocated;
