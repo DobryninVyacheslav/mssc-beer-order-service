@@ -76,19 +76,29 @@ class BeerOrderManagerImplIT {
 
         wireMockServer.stubFor(get(BeerServiceImpl.BEER_UPC_PATH_V1 + "12345")
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
         BeerOrder beerOrder = createBeerOrder();
 
         BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
 
         await().untilAsserted(() -> {
             BeerOrder foundOrder = beerOrderRepository.findById(beerOrder.getId()).get();
-            // TODO - ALLOCATED STATUS
+
             assertEquals(BeerOrderState.ALLOCATED, foundOrder.getOrderStatus());
         });
-        savedBeerOrder = beerOrderRepository.findById(savedBeerOrder.getId()).orElseThrow();
 
-        assertNotNull(savedBeerOrder);
-        assertEquals(BeerOrderState.ALLOCATED, savedBeerOrder.getOrderStatus());
+        await().untilAsserted(() -> {
+            BeerOrder foundOrder = beerOrderRepository.findById(beerOrder.getId()).get();
+            BeerOrderLine line = foundOrder.getBeerOrderLines().iterator().next();
+            assertEquals(line.getOrderQuantity(), line.getQuantityAllocated());
+        });
+
+        BeerOrder savedBeerOrder2 = beerOrderRepository.findById(savedBeerOrder.getId()).orElseThrow();
+
+        assertNotNull(savedBeerOrder2);
+        assertEquals(BeerOrderState.ALLOCATED, savedBeerOrder2.getOrderStatus());
+        savedBeerOrder2.getBeerOrderLines().forEach(line ->
+                assertEquals(line.getOrderQuantity(), line.getQuantityAllocated()));
     }
 
     BeerOrder createBeerOrder() {
