@@ -36,7 +36,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     public BeerOrder newBeerOrder(BeerOrder beerOrder) {
         beerOrder.setId(null);
         beerOrder.setOrderStatus(BeerOrderState.NEW);
-        BeerOrder savedBeerOrder = beerOrderRepository.save(beerOrder);
+        BeerOrder savedBeerOrder = beerOrderRepository.saveAndFlush(beerOrder);
         sendBeerOrderEvent(savedBeerOrder, BeerOrderEvent.VALIDATE_ORDER);
         return savedBeerOrder;
     }
@@ -51,7 +51,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
                 BeerOrder validatedOrder = beerOrderRepository.findById(beerOrderId).orElseThrow();
                 sendBeerOrderEvent(validatedOrder, BeerOrderEvent.ALLOCATE_ORDER);
             } else {
-                sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_FAILED);
+                sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_FAILED);
             }
         }, () -> log.error("Order not found. Id: {}", beerOrderId));
 
