@@ -10,6 +10,7 @@ import guru.sfg.beer.order.service.domain.Customer;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.repositories.CustomerRepository;
 import guru.sfg.beer.order.service.services.beer.BeerServiceImpl;
+import guru.sfg.beer.order.service.services.testcomponents.BeerOrderValidationListener;
 import guru.sfg.brewery.model.BeerDto;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,6 +100,28 @@ class BeerOrderManagerImplIT {
         assertEquals(BeerOrderState.ALLOCATED, savedBeerOrder2.getOrderStatus());
         savedBeerOrder2.getBeerOrderLines().forEach(line ->
                 assertEquals(line.getOrderQuantity(), line.getQuantityAllocated()));
+    }
+
+    @SneakyThrows
+    @Test
+    void testFailedValidation() {
+        BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .upc("12345")
+                .build();
+
+        wireMockServer.stubFor(get(BeerServiceImpl.BEER_UPC_PATH_V1 + "12345")
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef(BeerOrderValidationListener.FAIL_VALIDATION);
+
+        BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            BeerOrder foundOrder = beerOrderRepository.findById(beerOrder.getId()).get();
+            assertEquals(BeerOrderState.VALIDATION_EXCEPTION, foundOrder.getOrderStatus());
+        });
     }
 
     @SneakyThrows

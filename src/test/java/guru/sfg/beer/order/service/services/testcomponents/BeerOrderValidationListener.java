@@ -15,16 +15,23 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class BeerOrderValidationListener {
 
+    public static final String FAIL_VALIDATION = "fail-validation";
     private final JmsTemplate jmsTemplate;
 
     @JmsListener(destination = JmsConfig.VALIDATE_ORDER_QUEUE)
     public void listen(Message message) {
+        boolean isValid = true;
 
         ValidateOrderRequest request = (ValidateOrderRequest) message.getPayload();
 
+        // condition to fail validation
+        if (FAIL_VALIDATION.equals(request.getBeerOrderDto().getCustomerRef())) {
+            isValid = false;
+        }
+
         jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_RESPONSE_QUEUE,
                 ValidateOrderResult.builder()
-                        .isValid(true)
+                        .isValid(isValid)
                         .orderId(request.getBeerOrderDto().getId())
                         .build());
     }
