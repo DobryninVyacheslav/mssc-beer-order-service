@@ -1,6 +1,7 @@
 package guru.sfg.beer.order.service.services.testcomponents;
 
 import guru.sfg.beer.order.service.config.JmsConfig;
+import guru.sfg.brewery.model.BeerOrderLineDto;
 import guru.sfg.brewery.model.events.AllocateOrderRequest;
 import guru.sfg.brewery.model.events.AllocateOrderResult;
 import lombok.RequiredArgsConstructor;
@@ -15,21 +16,37 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class BeerOrderAllocationListener {
 
+    public static final String FAIL_ALLOCATION = "fail-allocation";
+    public static final String PARTIAL_ALLOCATION = "partial-allocation";
     private final JmsTemplate jmsTemplate;
 
     @JmsListener(destination = JmsConfig.ALLOCATE_ORDER_QUEUE)
     public void listen(Message message) {
         AllocateOrderRequest request = (AllocateOrderRequest) message.getPayload();
 
-        request.getBeerOrderDto().getBeerOrderLines().forEach(beerOrderLineDto -> {
-            beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
-        });
+        boolean pendingInventory = false;
+        boolean allocationError = false;
+
+        if (PARTIAL_ALLOCATION.equals(request.getBeerOrderDto().getCustomerRef())) {
+            pendingInventory = true;
+        }
+        if (FAIL_ALLOCATION.equals(request.getBeerOrderDto().getCustomerRef())) {
+            allocationError = true;
+        }
+
+        for (BeerOrderLineDto beerOrderLineDto : request.getBeerOrderDto().getBeerOrderLines()) {
+            if (pendingInventory) {
+                beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity() - 1);
+            } else {
+                beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
+            }
+        }
 
         jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
                 AllocateOrderResult.builder()
                         .beerOrderDto(request.getBeerOrderDto())
-                        .pendingInventory(false)
-                        .allocationError(false)
+                        .pendingInventory(pendingInventory)
+                        .allocationError(allocationError)
                         .build());
     }
 

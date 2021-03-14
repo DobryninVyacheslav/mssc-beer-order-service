@@ -10,7 +10,9 @@ import guru.sfg.beer.order.service.domain.Customer;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.repositories.CustomerRepository;
 import guru.sfg.beer.order.service.services.beer.BeerServiceImpl;
+import guru.sfg.beer.order.service.services.testcomponents.BeerOrderAllocationListener;
 import guru.sfg.beer.order.service.services.testcomponents.BeerOrderValidationListener;
+import guru.sfg.beer.order.service.web.mappers.BeerOrderMapper;
 import guru.sfg.brewery.model.BeerDto;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,11 +40,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class BeerOrderManagerImplIT {
 
     @Autowired
-    BeerOrderManager beerOrderManager;
-    @Autowired
     BeerOrderRepository beerOrderRepository;
     @Autowired
     CustomerRepository customerRepository;
+    @Autowired
+    BeerOrderManager beerOrderManager;
+    @Autowired
+    BeerOrderMapper beerOrderMapper;
     @Autowired
     WireMockServer wireMockServer;
     @Autowired
@@ -153,6 +157,50 @@ class BeerOrderManagerImplIT {
 
         BeerOrder pickedUpOrder = beerOrderRepository.findById(savedBeerOrder.getId()).get();
         assertEquals(BeerOrderState.PICKED_UP, pickedUpOrder.getOrderStatus());
+    }
+
+    @SneakyThrows
+    @Test
+    void testFailedAllocation() {
+        BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .upc("12345")
+                .build();
+
+        wireMockServer.stubFor(get(BeerServiceImpl.BEER_UPC_PATH_V1 + "12345")
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef(BeerOrderAllocationListener.FAIL_ALLOCATION);
+
+        beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            BeerOrder foundOrder = beerOrderRepository.findById(beerOrder.getId()).get();
+            assertEquals(BeerOrderState.ALLOCATION_EXCEPTION, foundOrder.getOrderStatus());
+        });
+    }
+
+    @SneakyThrows
+    @Test
+    void testPartialAllocation() {
+        BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .upc("12345")
+                .build();
+
+        wireMockServer.stubFor(get(BeerServiceImpl.BEER_UPC_PATH_V1 + "12345")
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef(BeerOrderAllocationListener.PARTIAL_ALLOCATION);
+
+        beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            BeerOrder foundOrder = beerOrderRepository.findById(beerOrder.getId()).get();
+            assertEquals(BeerOrderState.PENDING_INVENTORY, foundOrder.getOrderStatus());
+        });
     }
 
     BeerOrder createBeerOrder() {
