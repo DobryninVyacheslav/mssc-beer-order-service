@@ -7,6 +7,7 @@ import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.sm.BeerOrderStareChangeInterceptor;
 import guru.sfg.brewery.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
@@ -16,8 +17,9 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Boolean.TRUE;
 
@@ -30,7 +32,6 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     private final StateMachineFactory<BeerOrderState, BeerOrderEvent> stateMachineFactory;
     private final BeerOrderStareChangeInterceptor beerOrderStareChangeInterceptor;
     private final BeerOrderRepository beerOrderRepository;
-    private final EntityManager entityManager;
 
     @Transactional
     @Override
@@ -45,11 +46,11 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     @Transactional
     @Override
     public void processValidationResult(UUID beerOrderId, Boolean isValid) {
-        entityManager.flush();
+        log.debug("Process validation result for beerOrderId: {}. Valid? {}", beerOrderId, isValid);
         beerOrderRepository.findById(beerOrderId).ifPresentOrElse(beerOrder -> {
             if (TRUE.equals(isValid)) {
                 sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_PASSED);
-
+                awaitForStatus(beerOrderId, BeerOrderState.VALIDATED);
                 BeerOrder validatedOrder = beerOrderRepository.findById(beerOrderId).orElseThrow();
                 sendBeerOrderEvent(validatedOrder, BeerOrderEvent.ALLOCATE_ORDER);
             } else {
@@ -64,6 +65,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     public void beerOrderAllocationPassed(BeerOrderDto beerOrderDto) {
         beerOrderRepository.findById(beerOrderDto.getId()).ifPresentOrElse(beerOrder -> {
             sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_SUCCESS);
+            awaitForStatus(beerOrder.getId(), BeerOrderState.ALLOCATED);
             updateAllocatedQty(beerOrderDto);
         }, () -> log.error("Order not found. Id: {}", beerOrderDto.getId()));
     }
@@ -86,6 +88,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     public void beerOrderAllocationPendingInventory(BeerOrderDto beerOrderDto) {
         beerOrderRepository.findById(beerOrderDto.getId()).ifPresentOrElse(beerOrder -> {
             sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_NO_INVENTORY);
+            awaitForStatus(beerOrder.getId(), BeerOrderState.PENDING_INVENTORY);
             updateAllocatedQty(beerOrderDto);
         }, () -> log.error("Order not found. Id: {}", beerOrderDto.getId()));
     }
@@ -118,6 +121,36 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
                 .setHeader(ORDER_ID_HEADER, beerOrder.getId().toString())
                 .build();
         stateMachine.sendEvent(message);
+    }
+
+    @SneakyThrows
+    private void awaitForStatus(UUID beerOrderId, BeerOrderState state) {
+        AtomicBoolean found = new AtomicBoolean(false);
+        AtomicInteger loopCount = new AtomicInteger(0);
+
+        while (!found.get()) {
+            if (loopCount.incrementAndGet() > 10) {
+                found.set(true);
+                log.debug("Loop retries exceeded");
+            }
+
+            beerOrderRepository.findById(beerOrderId).ifPresentOrElse(beerOrder -> {
+                if (state.equals(beerOrder.getOrderStatus())) {
+                    found.set(true);
+                    log.debug("Order found");
+                } else {
+                    log.debug("Order status not equal. Expected: {}. Found: {}",
+                            state, beerOrder.getOrderStatus());
+                }
+            }, () -> log.debug("Order id not found"));
+
+            if (!found.get()) {
+                log.debug("Sleeping for retry");
+                Thread.sleep(100);
+            }
+
+        }
+
     }
 
     private StateMachine<BeerOrderState, BeerOrderEvent> build(BeerOrder beerOrder) {
