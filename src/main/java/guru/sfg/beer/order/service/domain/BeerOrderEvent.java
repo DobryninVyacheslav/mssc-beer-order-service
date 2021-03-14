@@ -2,6 +2,7 @@ package guru.sfg.beer.order.service.domain;
 
 public enum BeerOrderEvent {
     VALIDATE_ORDER,
+    CANCEL_ORDER,
     VALIDATION_PASSED,
     VALIDATION_FAILED,
     ALLOCATE_ORDER,

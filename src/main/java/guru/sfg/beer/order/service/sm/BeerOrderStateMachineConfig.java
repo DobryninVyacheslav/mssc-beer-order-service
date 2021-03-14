@@ -29,6 +29,7 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .states(EnumSet.allOf(BeerOrderState.class))
                 .end(BeerOrderState.PICKED_UP)
                 .end(BeerOrderState.DELIVERED)
+                .end(BeerOrderState.CANCELLED)
                 .end(BeerOrderState.DELIVERY_EXCEPTION)
                 .end(BeerOrderState.VALIDATION_EXCEPTION)
                 .end(BeerOrderState.ALLOCATION_EXCEPTION);
@@ -44,6 +45,9 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .source(BeerOrderState.VALIDATION_PENDING).target(BeerOrderState.VALIDATED)
                 .event(BeerOrderEvent.VALIDATION_PASSED)
                 .and().withExternal()
+                .source(BeerOrderState.VALIDATION_PENDING).target(BeerOrderState.CANCELLED)
+                .event(BeerOrderEvent.CANCEL_ORDER)
+                .and().withExternal()
                 .source(BeerOrderState.VALIDATION_PENDING).target(BeerOrderState.VALIDATION_EXCEPTION)
                 .event(BeerOrderEvent.VALIDATION_FAILED)
                 .action(validationFailureAction)
@@ -52,6 +56,9 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .event(BeerOrderEvent.ALLOCATE_ORDER)
                 .action(allocateOrderAction)
                 .and().withExternal()
+                .source(BeerOrderState.VALIDATED).target(BeerOrderState.CANCELLED)
+                .event(BeerOrderEvent.CANCEL_ORDER)
+                .and().withExternal()
                 .source(BeerOrderState.ALLOCATION_PENDING).target(BeerOrderState.ALLOCATED)
                 .event(BeerOrderEvent.ALLOCATION_SUCCESS)
                 .and().withExternal()
@@ -59,10 +66,17 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .event(BeerOrderEvent.ALLOCATION_FAILED)
                 .action(allocationFailureAction)
                 .and().withExternal()
+                .source(BeerOrderState.ALLOCATION_PENDING).target(BeerOrderState.CANCELLED)
+                .event(BeerOrderEvent.CANCEL_ORDER)
+                .and().withExternal()
                 .source(BeerOrderState.ALLOCATION_PENDING).target(BeerOrderState.PENDING_INVENTORY)
                 .event(BeerOrderEvent.ALLOCATION_NO_INVENTORY)
                 .and().withExternal()
                 .source(BeerOrderState.ALLOCATED).target(BeerOrderState.PICKED_UP)
-                .event(BeerOrderEvent.BEER_ORDER_PICKED_UP);
+                .event(BeerOrderEvent.BEER_ORDER_PICKED_UP)
+                .and().withExternal()
+                .source(BeerOrderState.ALLOCATED).target(BeerOrderState.CANCELLED)
+                .event(BeerOrderEvent.CANCEL_ORDER);
+        // TODO add action;
     }
 }
