@@ -27,17 +27,17 @@ public class ValidateOrderAction implements Action<BeerOrderState, BeerOrderEven
 
     @Override
     public void execute(StateContext<BeerOrderState, BeerOrderEvent> context) {
-        String strBeerOrderId = (String) context.getMessage()
+        String beerOrderId = (String) context.getMessage()
                 .getHeaders().get(BeerOrderManagerImpl.ORDER_ID_HEADER);
-        if (strBeerOrderId == null) {
+        if (beerOrderId == null) {
             log.warn("Beer order id is null");
         } else {
-            beerOrderRepository.findById(UUID.fromString(strBeerOrderId)).ifPresentOrElse(beerOrder -> {
+            beerOrderRepository.findById(UUID.fromString(beerOrderId)).ifPresentOrElse(beerOrder -> {
                 jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_QUEUE, ValidateOrderRequest.builder()
                         .beerOrderDto(beerOrderMapper.beerOrderToDto(beerOrder))
                         .build());
-                log.debug("Sent validation request to queue for order id: " + strBeerOrderId);
-            }, () -> log.error("Order not found. Id: {}", strBeerOrderId));
+                log.debug("Sent validation request to queue for order id: " + beerOrderId);
+            }, () -> log.error("Order not found. Id: {}", beerOrderId));
         }
     }
 }
