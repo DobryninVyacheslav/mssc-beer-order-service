@@ -17,10 +17,11 @@ import java.util.EnumSet;
 @EnableStateMachineFactory
 public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<BeerOrderState, BeerOrderEvent> {
 
-    private final Action<BeerOrderState, BeerOrderEvent> validateOrderAction;
-    private final Action<BeerOrderState, BeerOrderEvent> allocateOrderAction;
     private final Action<BeerOrderState, BeerOrderEvent> validationFailureAction;
     private final Action<BeerOrderState, BeerOrderEvent> allocationFailureAction;
+    private final Action<BeerOrderState, BeerOrderEvent> deallocateOrderAction;
+    private final Action<BeerOrderState, BeerOrderEvent> validateOrderAction;
+    private final Action<BeerOrderState, BeerOrderEvent> allocateOrderAction;
 
     @Override
     public void configure(StateMachineStateConfigurer<BeerOrderState, BeerOrderEvent> states) throws Exception {
@@ -76,7 +77,7 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .event(BeerOrderEvent.BEER_ORDER_PICKED_UP)
                 .and().withExternal()
                 .source(BeerOrderState.ALLOCATED).target(BeerOrderState.CANCELLED)
-                .event(BeerOrderEvent.CANCEL_ORDER);
-        // TODO add action;
+                .event(BeerOrderEvent.CANCEL_ORDER)
+                .action(deallocateOrderAction);
     }
 }
